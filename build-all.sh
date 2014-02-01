@@ -1,13 +1,13 @@
-mkdir bin/
+mkdir -p bin/
 echo -e "\nBuilding binaries\n"
 cd src
 
-files=`ls -1 *.c | awk -F"." '{ print $1 }'`
+files=`ls -1 *.cpp | awk -F"." '{ print $1 }'`
 
 for i in $files
 do
-   echo Compiling ${i}.c
-   gcc ${i}.c -lpthread -o ../bin/${i}
+   echo Compiling ${i}.cpp
+   g++ ${i}.cpp -lpthread -g -o ../bin/${i}
    if [ $? != 0 ]; then
 		echo Compilation failed, please check your configuration.
 		exit 1
