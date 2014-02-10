@@ -1,7 +1,9 @@
 // Goal : Write a recursive threading met hod to find the defective bulbs and the number of threads that have been created for this purpose
 
-// TODO
-// 1. Test uneven arrays
+// To compile: Must be under GNU/Linux
+// In terminal: g++ assignment1.cpp -lpthread -o assignment1
+
+// To run: ./assignment1
 
 #include <pthread.h>
 #include <stdlib.h>
