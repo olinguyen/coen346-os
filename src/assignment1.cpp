@@ -1,21 +1,26 @@
 // Goal : Write a recursive threading met hod to find the defective bulbs and the number of threads that have been created for this purpose
 
+// TODO
+// 1. Test uneven arrays
+
 #include <pthread.h>
 #include <stdlib.h>
 #include <time.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include <vector>
 
 #define MAX_ARRAY_SIZE 100
 
 int array[MAX_ARRAY_SIZE];
+std::vector<int> defectiveIndex;
 int threadcount = 0;
 
 // A structure to keep the needed information of each thread
 typedef struct
 {
-int* array;
-int arraySize;
+  int* array;
+  int arraySize;
 
 } ThreadInfo;
 
@@ -34,9 +39,9 @@ int main()
 
   ptr_file = fopen("input.txt","r");
   if (!ptr_file) {
-     printf("Could not open file\n");
-     return 1;
-   }
+    printf("Could not open file\n");
+    return 1;
+  }
 
   // Get array size
   fscanf (ptr_file, "%d", &array_size);
@@ -45,11 +50,11 @@ int main()
   // Assign input to array
   while (!feof (ptr_file))
   {
-   fscanf (ptr_file, "%d", &i);
-   array[index] = i;
-   if(index < array_size)
-    printf ("%d ", i);
-   index++;
+    fscanf (ptr_file, "%d", &i);
+    array[index] = i;
+    if(index < array_size)
+      printf ("%d ", i);
+    index++;
   }
   printf("\n");
   // initializing thread info
@@ -60,7 +65,11 @@ int main()
 
   // Wait for thread to finish
   pthread_join(threadid, NULL);
-  printf("Total threads created = %d\n", threadcount);
+  printf("Total threads created = %d\nDefective lightbulb at index: ", threadcount);
+
+  // for (std::vector<int>::iterator it = defectiveIndex.begin(); it != defectiveIndex.end(); ++it)
+  //   printf("%d", *it);
+  // printf("\n");
 
   fclose(ptr_file);
   return 0;
@@ -82,12 +91,14 @@ bool ContainsDefective(int* array, int size)
 void* FindDefective(void* a)
 {
   pthread_t leftchild_id, rightchild_id;
+  int leftArraySize, rightArraySize;
+
+  // Keep information about current thread
   ThreadInfo* info = (ThreadInfo*)a;
   // Increment thread count
   threadcount++;
   // printf("Thread number %d\n", threadcount);
 
-  // Keep information about current thread
   // printf("Current array size = %d\n", info->arraySize);
 
   for(int i =0; i < info->arraySize; ++i)
@@ -107,6 +118,7 @@ void* FindDefective(void* a)
       */
       int index = info->array - array;
       printf("Index of defective = %d\n", index);
+      // defectiveIndex.push_back(index);
       pthread_exit(0);
     }
     else {
@@ -121,12 +133,6 @@ void* FindDefective(void* a)
      pthread_exit(0);
   }
 
-  // Divide array
-  int leftArraySize = info->arraySize / 2;
-  int rightArraySize = info->arraySize / 2;
-  // printf("left array size %d\n", leftArraySize);
-  // printf("right array size %d\n", rightArraySize);
-
   // Instantiate 2 child objects
   ThreadInfo* leftChild = new ThreadInfo;
   ThreadInfo* rightChild = new ThreadInfo;
@@ -136,6 +142,18 @@ void* FindDefective(void* a)
     pthread_exit(0);
   }
 
+  // Divide array
+  if(info->arraySize % 2 == 0)
+  {
+    leftArraySize = info->arraySize / 2;
+    rightArraySize = info->arraySize / 2;
+  }
+  else
+  {
+    leftArraySize = info->arraySize / 2;
+    rightArraySize = leftArraySize + 1;
+  }
+
   leftChild->array = info->array;
   leftChild->arraySize = leftArraySize;
 
@@ -143,12 +161,12 @@ void* FindDefective(void* a)
   rightChild->arraySize = rightArraySize;
 
   // Create 2 threads
-  pthread_create(&leftchild_id, NULL,  FindDefective, leftChild);
-  pthread_create(&rightchild_id, NULL,  FindDefective, rightChild);
-
   // wait for child processes to end
+  pthread_create(&leftchild_id, NULL,  FindDefective, leftChild);
   pthread_join(leftchild_id, NULL);
+  pthread_create(&rightchild_id, NULL,  FindDefective, rightChild);
   pthread_join(rightchild_id, NULL);
+
 
   pthread_exit(0); /* exit */
 }
