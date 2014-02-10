@@ -13,8 +13,9 @@
 #define MAX_ARRAY_SIZE 100
 
 int array[MAX_ARRAY_SIZE];
-std::vector<int> defectiveIndex;
+int defectiveArray[MAX_ARRAY_SIZE];
 int threadcount = 0;
+int defectivecount = 0;
 
 // A structure to keep the needed information of each thread
 typedef struct
@@ -67,9 +68,10 @@ int main()
   pthread_join(threadid, NULL);
   printf("Total threads created = %d\nDefective lightbulb at index: ", threadcount);
 
-  // for (std::vector<int>::iterator it = defectiveIndex.begin(); it != defectiveIndex.end(); ++it)
-  //   printf("%d", *it);
-  // printf("\n");
+  for (int y = 0; y < defectivecount; y++) {
+    printf("%d ", defectiveArray[y]);
+  }
+  printf("\n");
 
   fclose(ptr_file);
   return 0;
@@ -97,15 +99,6 @@ void* FindDefective(void* a)
   ThreadInfo* info = (ThreadInfo*)a;
   // Increment thread count
   threadcount++;
-  // printf("Thread number %d\n", threadcount);
-
-  // printf("Current array size = %d\n", info->arraySize);
-
-  for(int i =0; i < info->arraySize; ++i)
-  {
-    printf("%d ", *(info->array + i));
-  }
-  printf("\n");
 
   // if there are no children, check if the lightbulb is defective
   if(info->arraySize == 1)
@@ -113,12 +106,11 @@ void* FindDefective(void* a)
     int value = *(info->array);
     // printf("Light bulb value = %d\n", value);
     if( value == 0 ) {
-      /*
-      Keep index
-      */
+      // Keep index
       int index = info->array - array;
-      printf("Index of defective = %d\n", index);
-      // defectiveIndex.push_back(index);
+
+      defectiveArray[defectivecount] = index;
+      defectivecount++;
       pthread_exit(0);
     }
     else {
@@ -129,7 +121,6 @@ void* FindDefective(void* a)
 
   // If no light bulb are defective, end thread
   if(!ContainsDefective(info->array, info->arraySize)) {
-     // printf("No defective light bulb found\n");
      pthread_exit(0);
   }
 
