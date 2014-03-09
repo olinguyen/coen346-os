@@ -33,7 +33,7 @@ int g_time = 1;
 
 // Holds information of a thread for the scheduler
 typedef struct {
-
+  double quantum;
   // Execution time left
   double remaining_time;
   // Time that the process begins
@@ -59,7 +59,7 @@ struct longest_arrival_time
 {
   inline bool operator() (const process_t& struct1, const process_t& struct2)
   {
-    return (struct1.remaining_time > struct2.remaining_time);
+    return (struct1.arrival_time < struct2.arrival_time);
   }
 };
 
@@ -77,7 +77,6 @@ void set_thread_flag(int flag_value);
 void start_rr();
 void print_queue(std::deque<process_t>);
 int read_input(const char* filename);
-bool isQueueFinished(std::deque<process_t>);
 void log(int processId, char* state);
 
 int main(int argc, const char *argv[])
@@ -134,6 +133,26 @@ void* run_process(void* a)
 
     info->duration += quantum;
     info->remaining_time -= quantum;
+
+    int id;
+    for (int i = 0 ; i < running_queue.size() ; ++i) {
+      if (running_queue[i].id == info->id) {
+       id = i;
+      }
+    }
+
+    running_queue[id].duration = info->duration;
+    running_queue[id].remaining_time = info->remaining_time;
+
+    for (int i = 0 ; i < running_queue.size() ; ++i) {
+      if(i != id) {
+        running_queue[i].waiting_time += quantum;
+      }
+    }
+    for (int i = 0; i < waiting_queue.size() ; i++) {
+        waiting_queue[i].waiting_time += quantum;
+    }
+
     printf( "Run time: %lf\n", quantum);
     log(info->id, "paused");
     printf("Time %d, Process %d paused with remaining time: %f\n", g_time, info->id, info->remaining_time);
@@ -160,19 +179,19 @@ void set_thread_flag(int flag_value)
 
 void start_rr()
 {
+  bool areProcessFinished;
   printf("Starting round-robin scheduler\n");
-  while(!isQueueFinished(waiting_queue)) {
-    // Sort waiting queue
-    std::sort(waiting_queue.begin(), waiting_queue.end(), longest_arrival_time());
-
-    // if duplicates, sort by oldest process
-
+  std::sort(waiting_queue.begin(), waiting_queue.end(), longest_arrival_time());
+  while(1) {
+    areProcessFinished = true;
     // Add to run queue
-    for (int i = 0; i < thread_count; i++) {
+    for (int i = 0; i < waiting_queue.size(); i++) {
       // check for arrival time
-      if(waiting_queue[i].arrival_time >= g_time) {
+      if(waiting_queue.front().arrival_time >= g_time) {
         running_queue.push_back(waiting_queue.front());
         waiting_queue.pop_front();
+      } else {
+        break;
       }
     }
 
@@ -194,14 +213,22 @@ void start_rr()
       printf("Scheduler resumed\n");
       g_time++;
     }
-    // Add to waiting queue, remove from running queue
-    while(running_queue.size() != 0 )
-    {
-      waiting_queue.push_back(running_queue.front());
-      running_queue.pop_front();
+    print_queue(running_queue);
+    if (waiting_queue.size() == 0) {
+      for (int i = 0 ; i < running_queue.size() ; ++i) {
+          if (running_queue[i].remaining_time > 0.0000000000001) {
+            areProcessFinished = false;
+//            printf("pid %d has remaining time %f\n", running_queue[i].id, running_queue[i].remaining_time);
+          }
+      }
+    } else {
+      areProcessFinished = false;
     }
+    if (areProcessFinished)
+      break;
   }
 }
+
 
 void init_flag()
 {
@@ -213,7 +240,9 @@ void init_flag()
 void print_queue(std::deque<process_t> queue)
 {
   for (unsigned i = 0; i < queue.size(); i++) {
-    printf("id = %d, arrival = %d, remaining time = %f, execution time = %f\n", queue.at(i).id, queue[i].arrival_time, queue[i].remaining_time, queue[i].duration);
+    printf("id = %d, arrival = %d, remaining time = %f, execution time = %f, waiting time = %f\n"
+        , queue.at(i).id, queue[i].arrival_time, queue[i].remaining_time
+            , queue[i].duration, queue[i].waiting_time);
   }
 }
 
@@ -248,14 +277,6 @@ int read_input(const char* filename)
   fclose(fp);
   return 1;
 
-}
-
-bool isQueueFinished(std::deque<process_t> queue) {
-  for (int i = 0; i < queue.size(); i++) {
-    if(!queue[i].isFinished)
-      return false;
-  }
-  return true;
 }
 
 void log(int processId, char* state)
