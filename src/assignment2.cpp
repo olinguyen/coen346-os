@@ -86,11 +86,13 @@ int main(int argc, const char *argv[])
 
   init_flag();
 
+  /*
   pthread_t threads[thread_count];
 
   for (int i = 0; i < thread_count; i++) {
     pthread_create(&threads[i], NULL, run_process, (void*)&waiting_queue[i]);
   }
+  */
   start_rr();
   output = fopen("output.txt", "a");
    for (int i = 0; i < running_queue.size(); i++) {
@@ -106,6 +108,7 @@ int main(int argc, const char *argv[])
 void* run_process(void* a)
 {
   process_t* info = (process_t*)a;
+  log(info->id, "starting");
   while(info->remaining_time > 0.0) {
     // Lock mutex before accessing flag value
     pthread_mutex_lock(&thread_flag_mutex);
@@ -150,7 +153,7 @@ void* run_process(void* a)
 
     running_queue[id].duration = info->duration;
     running_queue[id].remaining_time = info->remaining_time;
-
+    ++g_time;
     for (int i = 0 ; i < running_queue.size() ; ++i) {
       if(i != id) {
         running_queue[i].waiting_time += quantum;
@@ -187,20 +190,29 @@ void set_thread_flag(int flag_value)
 void start_rr()
 {
   bool areProcessFinished;
+  int thread_index = 0;
+  pthread_t threads[thread_count];
   printf("Starting round-robin scheduler\n");
   std::sort(waiting_queue.begin(), waiting_queue.end(), longest_arrival_time());
   while(1) {
     areProcessFinished = true;
+
     // Add to run queue
-    for (int i = 0; i < waiting_queue.size(); i++) {
-      // check for arrival time
-      if(waiting_queue.front().arrival_time >= g_time) {
-        running_queue.push_back(waiting_queue.front());
-        waiting_queue.pop_front();
-      } else {
-        break;
+    print_queue(waiting_queue);
+    printf("printing running queue\n");
+    print_queue(running_queue);
+      for (int i = 0 ; i < waiting_queue.size() ; ++i) {
+        // check for arrival time
+        if(waiting_queue[i].arrival_time == g_time && !waiting_queue[i].isReady) {
+          pthread_create(&threads[thread_index], NULL, run_process, (void*)&waiting_queue[i]);
+          thread_index++;
+          waiting_queue[i].isReady = true;
+          running_queue.push_back(waiting_queue[i]);
+//          waiting_queue.pop_front();
+          waiting_queue.erase(waiting_queue.begin() + i);
+          i--;
+        }
       }
-    }
 
     std::sort(running_queue.begin(), running_queue.end(), shortest_arrival_time());
 
@@ -218,10 +230,10 @@ void start_rr()
       }
       pthread_mutex_unlock(&thread_flag_mutex);
       printf("Scheduler resumed\n");
-      g_time++;
+      //g_time++;
     }
     print_queue(running_queue);
-    if (waiting_queue.size() == 0) {
+    if (thread_index == thread_count -1) {
       for (int i = 0 ; i < running_queue.size() ; ++i) {
           if (running_queue[i].remaining_time > EPSILON) {
             areProcessFinished = false;
@@ -246,9 +258,12 @@ void init_flag()
 
 void print_queue(std::deque<process_t> queue)
 {
+  if(queue.size() == 0)
+    printf("queue empty\n");
+
   for (unsigned i = 0; i < queue.size(); i++) {
-    printf("id = %d, arrival = %d, remaining time = %f, execution time = %f, waiting time = %f\n"
-        , queue.at(i).id, queue[i].arrival_time, queue[i].remaining_time
+    printf("Time %d, id = %d, arrival = %d, remaining time = %f, execution time = %f, waiting time = %f\n"
+        , g_time, queue.at(i).id, queue[i].arrival_time, queue[i].remaining_time
             , queue[i].duration, queue[i].waiting_time);
   }
 }
