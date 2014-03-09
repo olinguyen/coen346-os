@@ -19,8 +19,8 @@ using namespace std;
 
 FILE* output;
 
-#define BILLION  1000000000L;
-
+#define BILLION  1000000000L
+#define EPSILON  0.0000000000001
 #define DEBUG 1
 
 // Used to keep track of older threads and their count
@@ -92,6 +92,13 @@ int main(int argc, const char *argv[])
     pthread_create(&threads[i], NULL, run_process, (void*)&waiting_queue[i]);
   }
   start_rr();
+  output = fopen("output.txt", "a");
+   for (int i = 0; i < running_queue.size(); i++) {
+      fprintf(output, "Process %d has waiting time %f with initial burst time %f\n"
+          , running_queue[i].id, running_queue[i].waiting_time, running_queue[i].duration);
+   }
+
+  fclose(output);
 
   return 0;
 }
@@ -216,7 +223,7 @@ void start_rr()
     print_queue(running_queue);
     if (waiting_queue.size() == 0) {
       for (int i = 0 ; i < running_queue.size() ; ++i) {
-          if (running_queue[i].remaining_time > 0.0000000000001) {
+          if (running_queue[i].remaining_time > EPSILON) {
             areProcessFinished = false;
 //            printf("pid %d has remaining time %f\n", running_queue[i].id, running_queue[i].remaining_time);
           }
