@@ -15,6 +15,8 @@
 #include <algorithm>
 #define BILLION  1000000000L;
 
+#define DEBUG 1
+
 // Used to keep track of older threads and their count
 int thread_count = 0;
 
@@ -26,17 +28,17 @@ int g_time = 1;
 // Holds information of a thread for the scheduler
 typedef struct {
 
-  int remaining_time;
+  // Execution time left
+  double remaining_time;
   // Time that the process begins
   int arrival_time;
   // Time the process spent in waiting queue
-  int waiting_time;
+  double waiting_time;
   // Total time the process has run so far
-  int duration;
+  double duration;
   int id;
-  int quantum;
-  bool isFinished;
-  bool isStarted;
+  double quantum;
+  bool isReady;
 
 } process_t;
 
@@ -122,27 +124,25 @@ int main(int argc, const char *argv[])
 void* run_process(void* a)
 {
   process_t* info = (process_t*)a;
-  while(1) {
+  while(info->remaining_time > 0) {
     // Lock mutex before accessing flag value
     pthread_mutex_lock(&thread_flag_mutex);
     // Check if the current thread is given CPU
     while (process_to_run != info->id) {
-      info->waiting_time++;
       pthread_cond_wait(&thread_flag_cv, &thread_flag_mutex);
     }
 
     pthread_mutex_unlock(&thread_flag_mutex);
 
     struct timespec start, stop;
-    double cycleDuration = 0.0;
-    double runTime;
+    double runTime = 0.0;
 
     if( clock_gettime( CLOCK_REALTIME, &start) == -1 ) {
       perror( "clock gettime" );
       return NULL;
     }
 
-    double quantum = 2.0;
+    double quantum = 0.1 * info->remaining_time;
     while(runTime < quantum) {
 
       if( clock_gettime( CLOCK_REALTIME, &stop) == -1 ) {
@@ -155,9 +155,11 @@ void* run_process(void* a)
     }
 
 
+    info->remaining_time -= info->duration;
     printf( "Run time: %lf\n", runTime);
 
     printf("Time %d, Process %d resumed\n", g_time, info->id);
+    /*
     // Check if current thread is finished
     if(info->remaining_time == 0) {
       printf("Time %d, Process %d finished\n", g_time, info->id);
@@ -169,17 +171,17 @@ void* run_process(void* a)
       set_thread_flag(0);
       pthread_exit(0);
     }
+    */
 
     // Decrement remaining time
-    info->remaining_time -= 1;
     g_time++;
-    info->duration++;
 
-    printf("Time %d, Process %d paused with remaining time: %d\n", g_time, info->id, info->remaining_time);
+    printf("Time %d, Process %d paused with remaining time: %f\n", g_time, info->id, info->remaining_time);
     // Return CPU to scheduler
     set_thread_flag(0);
   }
 
+  printf("Time %d, Process %d finished\n", g_time, info->id);
   return NULL;
 }
 
@@ -224,14 +226,15 @@ void init_flag()
 void print_queue(std::deque<process_t> queue)
 {
   for (int i = 0; i < (signed)queue.size(); i++) {
-    printf("id = %d, arrival = %d, remaining time = %d, execution time = %d\n", queue.at(i).id, queue[i].arrival_time, queue[i].remaining_time, queue[i].duration);
+    printf("id = %d, arrival = %d, remaining time = %f, execution time = %f\n", queue.at(i).id, queue[i].arrival_time, queue[i].remaining_time, queue[i].duration);
   }
 }
 
 int read_input(const char* filename)
 {
   FILE* fp;
-  int i;
+  int y;
+  float i;
 
   fp = fopen(filename, "r");
   if (!fp) {
@@ -240,17 +243,18 @@ int read_input(const char* filename)
   }
 
   // Assign input to array
-  while ( fscanf (fp, "%d", &i) != EOF )
+  while ( fscanf (fp, "%d %f", &y, &i ) != EOF )
   {
     process_t* temp = new process_t;
-    temp->waiting_time = 0;
-    temp->arrival_time = i;
-    temp->duration = 0;
-    fscanf (fp, "%d", &i);
+    temp->waiting_time = temp->duration =  0.0;
+    temp->arrival_time = y;
     temp->remaining_time = i;
     temp->id = ++thread_count;
     waiting_queue.push_back(*temp);
-//    printf("id = %d, arrival time = %d, remaining time = %d\n", temp->id, temp->arrival_time, temp->remaining_time);
+    if(DEBUG){
+      printf("id = %d, arrival time = %d, remaining time = %.2f\n",
+        temp->id, temp->arrival_time, temp->remaining_time);
+    }
   }
 
   fclose(fp);
