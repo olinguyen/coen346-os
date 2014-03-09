@@ -13,6 +13,12 @@
 #include <queue>
 #include <deque>
 #include <algorithm>
+#include <fstream>
+
+using namespace std;
+
+FILE* output;
+
 #define BILLION  1000000000L;
 
 #define DEBUG 1
@@ -37,9 +43,8 @@ typedef struct {
   // Total time the process has run so far
   double duration;
   int id;
-  double quantum;
   bool isReady;
-
+  bool isFinished;
 } process_t;
 
 struct shortest_arrival_time
@@ -47,6 +52,14 @@ struct shortest_arrival_time
   inline bool operator() (const process_t& struct1, const process_t& struct2)
   {
     return (struct1.remaining_time < struct2.remaining_time);
+  }
+};
+
+struct longest_arrival_time
+{
+  inline bool operator() (const process_t& struct1, const process_t& struct2)
+  {
+    return (struct1.remaining_time > struct2.remaining_time);
   }
 };
 
@@ -61,10 +74,11 @@ void* run_process(void* a);
 void init_flag();
 // Function to give CPU for a specific thread
 void set_thread_flag(int flag_value);
-int schedule();
 void start_rr();
 void print_queue(std::deque<process_t>);
 int read_input(const char* filename);
+bool isQueueFinished(std::deque<process_t>);
+void log(int processId, char* state);
 
 int main(int argc, const char *argv[])
 {
@@ -75,48 +89,10 @@ int main(int argc, const char *argv[])
 
   pthread_t threads[thread_count];
 
-  // Check for arrival time and start process
-  /*
-    for(int i = 0; i < waiting_queue.size(); ++i)
-    {
-      if(g_time >= waiting_queue[i].arrival_time)
-        pthread_create(&threads[i], NULL, run_process, (void*)&waiting_queue[i]);
-    }
-  */
-
-
   for (int i = 0; i < thread_count; i++) {
     pthread_create(&threads[i], NULL, run_process, (void*)&waiting_queue[i]);
   }
-
-  // Sort waiting queue
-  std::sort(waiting_queue.begin(), waiting_queue.end(), shortest_arrival_time());
-
-  // if duplicates, sort by oldest process
-
-  // Add to run queue
-  for (int i = 1; i <= thread_count; i++) {
-    running_queue.push_back(waiting_queue.front());
-    waiting_queue.pop_front();
-  }
-
-  printf("Starting round-robin scheduler\n");
-  // Run all processes in run queue
-  for (int i = 1; i <= thread_count; i++) {
-    // Wake first pid in queue and give it the CPU
-    process_t current = running_queue.front();
-    set_thread_flag(current.id);
-    // Sleep until cpu is returned to scheduler
-    pthread_mutex_lock(&thread_flag_mutex);
-    while (process_to_run != 0) {
-      pthread_cond_wait(&thread_flag_cv, &thread_flag_mutex);
-    }
-    pthread_mutex_unlock(&thread_flag_mutex);
-    printf("Scheduler resumed\n");
-    // Add to waitign queue, remove from running queue
-    waiting_queue.push_back(running_queue.front());
-    running_queue.pop_front();
-  }
+  start_rr();
 
   return 0;
 }
@@ -124,7 +100,7 @@ int main(int argc, const char *argv[])
 void* run_process(void* a)
 {
   process_t* info = (process_t*)a;
-  while(info->remaining_time > 0) {
+  while(info->remaining_time > 0.0) {
     // Lock mutex before accessing flag value
     pthread_mutex_lock(&thread_flag_mutex);
     // Check if the current thread is given CPU
@@ -134,6 +110,8 @@ void* run_process(void* a)
 
     pthread_mutex_unlock(&thread_flag_mutex);
 
+    log(info->id, "resumed");
+    printf("Time %d, Process %d resumed with remaining time %f\n", g_time, info->id, info->remaining_time);
     struct timespec start, stop;
     double runTime = 0.0;
 
@@ -154,34 +132,18 @@ void* run_process(void* a)
                / (double)BILLION;
     }
 
-
-    info->remaining_time -= info->duration;
-    printf( "Run time: %lf\n", runTime);
-
-    printf("Time %d, Process %d resumed\n", g_time, info->id);
-    /*
-    // Check if current thread is finished
-    if(info->remaining_time == 0) {
-      printf("Time %d, Process %d finished\n", g_time, info->id);
-
-      info->quantum = -1;
-
-      // Return to scheduler
-      // TODO: Does the thread end when its remaining time is over?
-      set_thread_flag(0);
-      pthread_exit(0);
-    }
-    */
-
-    // Decrement remaining time
-    g_time++;
-
+    info->duration += quantum;
+    info->remaining_time -= quantum;
+    printf( "Run time: %lf\n", quantum);
+    log(info->id, "paused");
     printf("Time %d, Process %d paused with remaining time: %f\n", g_time, info->id, info->remaining_time);
     // Return CPU to scheduler
     set_thread_flag(0);
   }
 
+  info->isFinished = true;
   printf("Time %d, Process %d finished\n", g_time, info->id);
+  log(info->id, "finished");
   return NULL;
 }
 
@@ -196,24 +158,49 @@ void set_thread_flag(int flag_value)
   pthread_mutex_unlock(&thread_flag_mutex);
 }
 
-int schedule()
+void start_rr()
 {
-  // Check arrival time
-  for (int i = 0; i < running_queue.size(); i++) {
-    if(g_time == running_queue[i].arrival_time)
-      return running_queue[i].id;
+  printf("Starting round-robin scheduler\n");
+  while(!isQueueFinished(waiting_queue)) {
+    // Sort waiting queue
+    std::sort(waiting_queue.begin(), waiting_queue.end(), longest_arrival_time());
+
+    // if duplicates, sort by oldest process
+
+    // Add to run queue
+    for (int i = 0; i < thread_count; i++) {
+      // check for arrival time
+      if(waiting_queue[i].arrival_time >= g_time) {
+        running_queue.push_back(waiting_queue.front());
+        waiting_queue.pop_front();
+      }
+    }
+
+    std::sort(running_queue.begin(), running_queue.end(), shortest_arrival_time());
+
+    // Run all processes in run queue
+    for (int i = 0; i < running_queue.size(); i++) {
+      // Wake first pid in queue and give it the CPU
+      if(DEBUG) {
+        printf("Scheduler resuming pid %d\n", running_queue[i].id);
+      }
+      set_thread_flag(running_queue[i].id);
+      // Sleep until cpu is returned to scheduler
+      pthread_mutex_lock(&thread_flag_mutex);
+      while (process_to_run != 0) {
+        pthread_cond_wait(&thread_flag_cv, &thread_flag_mutex);
+      }
+      pthread_mutex_unlock(&thread_flag_mutex);
+      printf("Scheduler resumed\n");
+      g_time++;
+    }
+    // Add to waiting queue, remove from running queue
+    while(running_queue.size() != 0 )
+    {
+      waiting_queue.push_back(running_queue.front());
+      running_queue.pop_front();
+    }
   }
-
-  // Move waiting queue to running queue
-
-  // Compute quantum for each process, 10% of of remaining execution time
-
-  // Sort for shortest remaining time
-  std::sort(running_queue.begin(), running_queue.end(), shortest_arrival_time());
-
-  // if duplicates, sort by oldest process
-
-  return 0;
 }
 
 void init_flag()
@@ -225,7 +212,7 @@ void init_flag()
 
 void print_queue(std::deque<process_t> queue)
 {
-  for (int i = 0; i < (signed)queue.size(); i++) {
+  for (unsigned i = 0; i < queue.size(); i++) {
     printf("id = %d, arrival = %d, remaining time = %f, execution time = %f\n", queue.at(i).id, queue[i].arrival_time, queue[i].remaining_time, queue[i].duration);
   }
 }
@@ -247,6 +234,7 @@ int read_input(const char* filename)
   {
     process_t* temp = new process_t;
     temp->waiting_time = temp->duration =  0.0;
+    temp->isFinished = temp->isReady = false;
     temp->arrival_time = y;
     temp->remaining_time = i;
     temp->id = ++thread_count;
@@ -260,4 +248,20 @@ int read_input(const char* filename)
   fclose(fp);
   return 1;
 
+}
+
+bool isQueueFinished(std::deque<process_t> queue) {
+  for (int i = 0; i < queue.size(); i++) {
+    if(!queue[i].isFinished)
+      return false;
+  }
+  return true;
+}
+
+void log(int processId, char* state)
+{
+  output = fopen("output.txt", "a");
+  fprintf(output, "Time: %d, Process %d: %s\n", g_time, processId, state);
+//  ss << "Time: " << time << ", Process " << processId << ": " << state << endl;
+  fclose(output);
 }
