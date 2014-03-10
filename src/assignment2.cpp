@@ -1,9 +1,3 @@
-// TODO:
-// Create thread on arrival time?
-// What queue is used for processes that have not arrived yet?
-// Oldest process first if same execution time
-// Specify time in waiting queue
-
 #include <stdio.h>
 #include <pthread.h>
 #include <unistd.h>
@@ -33,19 +27,15 @@ int g_time = 1;
 
 // Holds information of a thread for the scheduler
 typedef struct {
-  double quantum;
-  // Execution time left
-  double remaining_time;
-  // Time that the process begins
-  int arrival_time;
-  // Time the process spent in waiting queue
-  double waiting_time;
-  // Total time the process has run so far
-  double duration;
+  double quantum;        // quantum for a given run
+  double remaining_time; // Execution time left
+  int arrival_time;      // Time process is ready
+  double waiting_time;   // Time spent in waiting queue
+  double duration;       // Total time spent running so far
   int id;
   bool isReady;
   bool isFinished;
-  double burst_time;
+  double burst_time;     // total of time execution needed 
 } process_t;
 
 struct shortest_arrival_time
@@ -69,13 +59,10 @@ std::deque<process_t> waiting_queue;
 pthread_mutex_t thread_flag_mutex;
 pthread_cond_t thread_flag_cv;
 
-// Thread function that will simulate a process
-void* run_process(void* a);
-// Initialize  mutex and condition variables
-void init_flag();
-// Function to give CPU for a specific thread
-void set_thread_flag(int flag_value);
-void start_rr();
+void* run_process(void* a); // Thread function that will simulate a process
+void init_flag(); // Initializes  mutex and condition variables
+void set_thread_flag(int flag_value); // Gives CPU tp a specific thread
+void start_rr(); // scheduling used by main(scheduler thread)
 void print_queue(std::deque<process_t>);
 int read_input(const char* filename);
 void log(int processId, char* state);
@@ -233,7 +220,6 @@ void start_rr()
   }
 }
 
-
 void init_flag()
 {
   pthread_mutex_init(&thread_flag_mutex, NULL);
@@ -276,7 +262,6 @@ int read_input(const char* filename)
 
   fclose(fp);
   return 1;
-
 }
 
 void log(int processId, char* state)
@@ -285,7 +270,6 @@ void log(int processId, char* state)
   fprintf(output, "Time: %d, Process %d: %s\n", g_time, processId, state);
   fclose(output);
 }
-
 
 void checkArrivalTime()
 {
