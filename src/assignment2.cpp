@@ -1,3 +1,14 @@
+// Olivier Nguyen, ID: 6605583
+// Amine Mhedhbi, ID: 6245137
+
+// To compile (must be on Linux)
+// g++ assignment2.cpp -lpthread -o assignment
+
+/* To run
+In terminal:
+  ./assignment2 input.txt
+*/
+
 #include <stdio.h>
 #include <pthread.h>
 #include <unistd.h>
@@ -15,7 +26,7 @@ FILE* output;
 
 #define BILLION  1000000000L
 #define EPSILON  0.00000001
-#define DEBUG 1
+#define DEBUG 0
 
 // Used to keep track of older threads and their count
 int thread_count = 0;
@@ -35,7 +46,7 @@ typedef struct {
   int id;
   bool isReady;
   bool isFinished;
-  double burst_time;     // total of time execution needed 
+  double burst_time;     // total of time execution needed
 } process_t;
 
 struct shortest_arrival_time
@@ -84,13 +95,15 @@ int main(int argc, const char *argv[])
     for (int i = 0; i < running_queue.size(); i++) {
         fprintf(output, "Process %d has waiting time %f with initial burst time %f\n"
             , running_queue[i].id, running_queue[i].waiting_time, running_queue[i].duration);
+        printf("Process %d has waiting time %f with initial burst time %f\n"
+            , running_queue[i].id, running_queue[i].waiting_time, running_queue[i].duration);
     }
 
     fclose(output);
-  
+
   } else {
     printf ("wrong number of arguments passed, program should be used as following:\n");
-    printf ("./path_to/assignment2 <input_filename>");
+    printf ("./assignment2 <input_filename>\n");
   }
 
   return 0;
@@ -100,6 +113,7 @@ void* run_process(void* a)
 {
   process_t* info = (process_t*)a;
   int id;
+  // Run thread until reaches total burst time
   while(info->burst_time - info->duration > EPSILON) {
     // Lock mutex before accessing flag value
     pthread_mutex_lock(&thread_flag_mutex);
@@ -114,15 +128,15 @@ void* run_process(void* a)
     printf("Time %d, Process %d resumed with remaining time %f\n", g_time, info->id, info->remaining_time);
     struct timespec start, stop;
     double runTime = 0.0;
-    
+
     if( clock_gettime( CLOCK_REALTIME, &start) == -1 ) {
       perror( "clock gettime" );
       return NULL;
     }
-    
+    // Run for 10% of remaining time
     double quantum = 0.1 * info->remaining_time;
     while(runTime < quantum) {
-      
+
       if( clock_gettime( CLOCK_REALTIME, &stop) == -1 ) {
         perror( "clock gettime" );
         return NULL;
@@ -153,7 +167,8 @@ void* run_process(void* a)
         waiting_queue[i].waiting_time += quantum;
     }
 
-    printf( "Run time: %lf\n", quantum);
+    if(DEBUG)
+      printf( "Run time: %lf\n", quantum);
     log(info->id, "paused");
     printf("Time %d, Process %d paused with remaining time: %f\n", g_time, info->id, info->remaining_time);
     // Return CPU to scheduler
@@ -192,7 +207,8 @@ void start_rr()
     // Run all processes in run queue
     for (int i = 0; i < running_queue.size(); i++) {
       if (!running_queue[i].isFinished) {// Wake first pid in queue and give it the CPU
-        print_queue(running_queue);
+        if(DEBUG)
+          print_queue(running_queue);
         set_thread_flag(running_queue[i].id);
         // Sleep until cpu is returned to scheduler
         pthread_mutex_lock(&thread_flag_mutex);
