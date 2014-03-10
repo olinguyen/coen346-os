@@ -83,24 +83,28 @@ void checkArrivalTime();
 
 int main(int argc, const char *argv[])
 {
-  const char* filepath = "input2.txt";
-  read_input(filepath);
+  if (argc == 2) {
+    const char* filepath = argv[1];
+    read_input(filepath);
+    init_flag();
+    pthread_t threads[thread_count];
 
-  init_flag();
+    for (int i = 0; i < thread_count; i++) {
+      pthread_create(&threads[i], NULL, run_process, (void*)&waiting_queue[i]);
+    }
+    start_rr();
+    output = fopen("output.txt", "a");
+    for (int i = 0; i < running_queue.size(); i++) {
+        fprintf(output, "Process %d has waiting time %f with initial burst time %f\n"
+            , running_queue[i].id, running_queue[i].waiting_time, running_queue[i].duration);
+    }
 
-  pthread_t threads[thread_count];
-
-  for (int i = 0; i < thread_count; i++) {
-    pthread_create(&threads[i], NULL, run_process, (void*)&waiting_queue[i]);
+    fclose(output);
+  
+  } else {
+    printf ("wrong number of arguments passed, program should be used as following:\n");
+    printf ("./path_to/assignment2 <input_filename>");
   }
-  start_rr();
-  output = fopen("output.txt", "a");
-   for (int i = 0; i < running_queue.size(); i++) {
-      fprintf(output, "Process %d has waiting time %f with initial burst time %f\n"
-          , running_queue[i].id, running_queue[i].waiting_time, running_queue[i].duration);
-   }
-
-  fclose(output);
 
   return 0;
 }
@@ -123,15 +127,15 @@ void* run_process(void* a)
     printf("Time %d, Process %d resumed with remaining time %f\n", g_time, info->id, info->remaining_time);
     struct timespec start, stop;
     double runTime = 0.0;
-
+    
     if( clock_gettime( CLOCK_REALTIME, &start) == -1 ) {
       perror( "clock gettime" );
       return NULL;
     }
-
+    
     double quantum = 0.1 * info->remaining_time;
     while(runTime < quantum) {
-
+      
       if( clock_gettime( CLOCK_REALTIME, &stop) == -1 ) {
         perror( "clock gettime" );
         return NULL;
@@ -163,15 +167,6 @@ void* run_process(void* a)
     }
 
     printf( "Run time: %lf\n", quantum);
-/*
-    if (info->burst_time - info->duration < EPSILON) {
-      info->isFinished =  true;
-      printf("Time %d, Process %d finished\n", g_time, info->id);
-      log(info->id, "finished");
-      set_thread_flag(0);
-      return NULL;
-    }
-    */
     log(info->id, "paused");
     printf("Time %d, Process %d paused with remaining time: %f\n", g_time, info->id, info->remaining_time);
     // Return CPU to scheduler
@@ -211,9 +206,6 @@ void start_rr()
     for (int i = 0; i < running_queue.size(); i++) {
       if (!running_queue[i].isFinished) {// Wake first pid in queue and give it the CPU
         print_queue(running_queue);
-        if(DEBUG) {
-          printf("Scheduler resuming pid %d\n", running_queue[i].id);
-        }
         set_thread_flag(running_queue[i].id);
         // Sleep until cpu is returned to scheduler
         pthread_mutex_lock(&thread_flag_mutex);
@@ -231,7 +223,6 @@ void start_rr()
       for (int i = 0 ; i < running_queue.size() ; ++i) {
           if (!running_queue[i].isFinished) {
             areProcessFinished = false;
-//            printf("pid %d has remaining time %f\n", running_queue[i].id, running_queue[i].remaining_time);
           }
       }
     } else {
@@ -281,10 +272,6 @@ int read_input(const char* filename)
     temp->remaining_time = temp->burst_time = i;
     temp->id = ++thread_count;
     waiting_queue.push_back(*temp);
-    if(DEBUG){
-      printf("id = %d, arrival time = %d, remaining time = %.2f\n",
-        temp->id, temp->arrival_time, temp->remaining_time);
-    }
   }
 
   fclose(fp);
@@ -296,7 +283,6 @@ void log(int processId, char* state)
 {
   output = fopen("output.txt", "a");
   fprintf(output, "Time: %d, Process %d: %s\n", g_time, processId, state);
-//  ss << "Time: " << time << ", Process " << processId << ": " << state << endl;
   fclose(output);
 }
 
@@ -307,7 +293,7 @@ void checkArrivalTime()
     // check for arrival time
     if(waiting_queue.front().arrival_time == g_time) {
       running_queue.push_back(waiting_queue.front());
-       log(waiting_queue.front().id, "starting");
+      log(waiting_queue.front().id, "starting");
       waiting_queue.pop_front();
     } else {
       break;
