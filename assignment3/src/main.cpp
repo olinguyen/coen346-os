@@ -1,6 +1,4 @@
-#include <stdio.h>
 #include <vmm.h>
-#include <time.h>
 
 #define LOGICAL_ADDRESS_SIZE 32
 #define PAGE_TABLE_ENTRIES 256
@@ -13,6 +11,7 @@
 using namespace std;
 
 int read_input(const char* filename);
+int read_commands(const char* filename);
 void log(int processId, char* state);
 
 const char* processes = "processes.txt";
@@ -22,30 +21,26 @@ const char* memconfig = "memconfig.txt";
 
 int main(int argc, const char *argv[])
 {
-  /*
-  printf("Hello World!\n");
-  time_t rawtime;
-  struct tm * timeinfo;
-
-  time (&rawtime);
-  timeinfo = localtime (&rawtime);
-  printf ("Current local time and date: %s", asctime(timeinfo));
-
-  std::map<string,int> mymap;
-  std::map<string,int>::iterator it;
-  mymap["gros"] = 50;
-  mymap.insert( make_pair( "dawg", 1337  )  );
-  it=mymap.find("dawg");
-  printf("%s %d\n", it->first.c_str(), it->second);
-  */
-
-  vmm test(5);
-  test.memStore("1", 50);
-  int ret = test.memLookup("1");
-  printf("%d\n", ret);
+  vmm test(0);
+  test.memStore("1", 2);
+  read_commands(commands);
   return 0;
 }
 
+int read_commands(const char* filename)
+{
+  string store = "Store";
+  string free  = "Release";
+  string lookup = "Lookup";
+
+  char curr_cmd[80];
+
+  FILE* fp;
+  fp = fopen(filename, "r");
+  fscanf(fp, "%s", curr_cmd);
+  printf("%s\n", curr_cmd);
+
+}
 int read_input(const char* filename)
 {
   FILE* fp;
