@@ -12,7 +12,6 @@ using namespace std;
 
 int read_input(const char* filename);
 int read_commands(const char* filename);
-void log(int processId, char* state);
 
 const char* processes = "processes.txt";
 const char* vm = "vm.txt";
@@ -60,11 +59,4 @@ int read_input(const char* filename)
 
   fclose(fp);
   return 1;
-}
-
-void log(int processId, char* state)
-{
-  FILE* output = fopen("output.txt", "a");
-  fprintf(output, "\n");
-  fclose(output);
 }
