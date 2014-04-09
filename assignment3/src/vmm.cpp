@@ -72,14 +72,34 @@ int vmm::memLookup(std::string variableId)
 void vmm::swap_memory(std::string variableId)
 {
   // Least recently accessed variable, or smallest last access time should be swapped
+  int index; // index for least recently accessed variable
+  int smallest_time = 10000; 
   variable_t tmp;
   time_t rawtime;
   time (&rawtime);
   tmp.lastAccessTime = rawtime;
 
+  // Search for element with smallest last access time and keep the index
+  for(int i = 0; i < page_table.size(); ++i)
+  {
+    struct tm * timeinfo = localtime(&page_table[i].lastAccessTime);
+    int curr_time = timeinfo->tm_min * 100;
+    curr_time += timeinfo->tm_sec;
+    if(curr_time < smallest_time)
+    {
+      smallest_time = curr_time;
+      index = i;
+    } 
+  }
 
+  // Append variable from main memory to vm.txt
 
+  // Erase element at index
 
+  // Insert variableid from disk
+
+  // Remove variableId from disk
+    
 }
 
 void vmm::handle_page_fault(void)
