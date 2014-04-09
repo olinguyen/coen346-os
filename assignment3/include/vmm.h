@@ -12,6 +12,12 @@ typedef struct {
   time_t lastAccessTime;
 } variable_t;
 
+typedef struct {
+  int value;
+  std::string variableId;
+  std::string command;
+} command_t;
+
 class vmm
 {
 public:
@@ -26,6 +32,7 @@ private:
   std::vector<variable_t> page_table;
   void swap_memory(std::string variableId);
   void handle_page_fault();
+  void vmm_log(int pid, std::string event, std::string variableId, int value);
 
 };
 

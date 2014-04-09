@@ -72,6 +72,14 @@ int vmm::memLookup(std::string variableId)
 void vmm::swap_memory(std::string variableId)
 {
   // Least recently accessed variable, or smallest last access time should be swapped
+  variable_t tmp;
+  time_t rawtime;
+  time (&rawtime);
+  tmp.lastAccessTime = rawtime;
+
+
+
+
 }
 
 void vmm::handle_page_fault(void)
