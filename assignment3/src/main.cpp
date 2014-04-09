@@ -20,7 +20,12 @@ const char* memconfig = "memconfig.txt";
 
 int main(int argc, const char *argv[])
 {
-  vmm test(0);
+  // Get size of main memory
+  FILE* fp;
+  int mem_size;
+  fp = fopen(memconfig, "r");
+  fscanf(fp, "%d", &mem_size);
+  vmm test(mem_size);
   test.memStore("1", 2);
   read_commands(commands);
   return 0;
@@ -43,8 +48,8 @@ int read_commands(const char* filename)
 int read_input(const char* filename)
 {
   FILE* fp;
-  int y, memory_size, starting_time, burst_time;
-  float i;
+  int starting_time, total_processes;
+  float burst_time;
 
   fp = fopen(filename, "r");
   if (!fp) {
@@ -52,9 +57,12 @@ int read_input(const char* filename)
     return -1;
   }
 
+  fscanf (fp, "%d", &total_processes);
+
   // Assign input to array
-  while ( fscanf (fp, "%d %f", &y, &i ) != EOF )
+  while ( fscanf (fp, "%d %f", &starting_time, &burst_time ) != EOF )
   {
+
   }
 
   fclose(fp);
