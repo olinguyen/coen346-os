@@ -4,6 +4,8 @@
 #define EPSILON  0.00000001
 #define DEBUG 0
 
+const char* cmd_path = "commands.txt";
+
 FILE* output;
 int process_to_run;
 int thread_count = 0;
@@ -172,4 +174,37 @@ void checkArrivalTime()
       break;
     }
   }
+}
+
+std::vector<command_t> read_commands(const char* filename)
+{
+  std::string store = "Store";
+
+  std::vector<command_t> commands;
+
+  char curr_cmd[10];
+  char curr_id[10];
+  FILE* fp;
+  command_t cmd;
+  fp = fopen(filename, "r");
+  while (fscanf (fp, "%s %s", curr_cmd, curr_id) != EOF)
+  {
+    cmd.command.assign(curr_cmd);
+    cmd.variableId.assign(curr_id);
+    if(DEBUG)
+      printf("%s %s", cmd.command.c_str(), cmd.variableId.c_str());
+    if(strcmp(cmd.command.c_str(), store.c_str()) == 0)
+    {
+      fscanf (fp, "%d\n", &cmd.value);
+      if(DEBUG)
+        printf(" %d\n", cmd.value);
+    }
+    else {
+      if(DEBUG)
+        printf("\n");
+    }
+    commands.push_back(cmd);
+  }
+
+  return commands;
 }

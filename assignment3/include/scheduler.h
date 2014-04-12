@@ -1,11 +1,12 @@
-#ifndef __VMM_H__
-#define __VMM_H__
+#ifndef __SCHEDULER_H__
+#define __SCHEDULER_H__
+
 #include <stdio.h>
 #include <pthread.h>
 #include <unistd.h>
 #include <semaphore.h>
 #include <time.h>
-#include <string>
+#include <string.h>
 #include <queue>
 #include <deque>
 #include <algorithm>
@@ -24,6 +25,12 @@ typedef struct {
   double burst_time;     // total of time execution needed
 } process_t;
 
+typedef struct {
+  int value;
+  std::string variableId;
+  std::string command;
+} command_t;
+
 void* run_process(void* a); // Thread function that will simulate a process
 void init_flag(); // Initializes  mutex and condition variables
 void set_thread_flag(int flag_value); // Gives CPU tp a specific thread
@@ -31,5 +38,6 @@ void start_rr(); // scheduling used by main(scheduler thread)
 void print_queue(std::deque<process_t>);
 void log(int processId, char* state);
 void checkArrivalTime();
+std::vector<command_t> read_commands(const char* filename);
 
 #endif

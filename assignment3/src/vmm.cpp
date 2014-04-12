@@ -20,7 +20,7 @@ int vmm::memStore(std::string variableId, unsigned int value)
   tmp.value = value;
   struct tm * timeinfo;
   timeinfo = localtime (&rawtime);
-  
+
   // Verify we have enough space in main memory
   if(page_table.size() >= max_size)
   {
@@ -28,6 +28,7 @@ int vmm::memStore(std::string variableId, unsigned int value)
     if(DEBUG) {
       printf("Writing to disk %s %d %s", variableId.c_str(), value, asctime(timeinfo));
     }
+    virtual_memory.push_back(tmp);
     fp = fopen("vm.txt", "a");
     fprintf(fp, "%s %d\n", variableId.c_str(), value);
   }
@@ -49,6 +50,13 @@ void vmm::memFree(std::string variableId)
       page_table.erase(page_table.begin() + i);
     }
   }
+
+  // Search in disk for variableId
+  for (int i = 0; i < page_table.size(); i++) {
+    if(page_table[i].variableId == variableId) {
+      page_table.erase(page_table.begin() + i);
+    }
+  }
 }
 
 // If the variableId exists in the main memory it returns its value. If the variableId is not in the main memory but exists in disk space (i.e. page fault occurs), then it should move this variable in to the memory.
@@ -56,7 +64,7 @@ void vmm::memFree(std::string variableId)
 // Finally, if the variableId does not exist in the main memory and disk space, the API should return - 1.
 int vmm::memLookup(std::string variableId)
 {
-  // Look up in disk space, handle page fault
+  // Search main memory for variableId
   for (int i = 0; i < page_table.size(); i++) {
     if(page_table[i].variableId == variableId) {
       time_t rawtime;
@@ -65,6 +73,10 @@ int vmm::memLookup(std::string variableId)
       return page_table[i].value;
     }
   }
+
+  // Look up in disk space, handle page fault
+  swap_memory(variableId);
+
   return 1;
 }
 
@@ -73,7 +85,7 @@ void vmm::swap_memory(std::string variableId)
 {
   // Least recently accessed variable, or smallest last access time should be swapped
   int index; // index for least recently accessed variable
-  int smallest_time = 10000; 
+  int smallest_time = 10000;
   variable_t tmp;
   time_t rawtime;
   time (&rawtime);
@@ -89,17 +101,24 @@ void vmm::swap_memory(std::string variableId)
     {
       smallest_time = curr_time;
       index = i;
-    } 
+    }
   }
 
   // Append variable from main memory to vm.txt
+  virtual_memory.push_back(page_table[index]);
 
   // Erase element at index
+  page_table.erase(page_table.begin() + index);
 
-  // Insert variableid from disk
-
-  // Remove variableId from disk
-    
+  // Insert variableid from disk to main memory
+  for (int i = 0; i < virtual_memory.size(); i++) {
+    if(virtual_memory[i].variableId == variableId) {
+      page_table.push_back(virtual_memory[i]);
+      // Remove variableId from disk
+      virtual_memory.erase(virtual_memory.begin() + i);
+      break;
+    }
+  }
 }
 
 void vmm::handle_page_fault(void)
