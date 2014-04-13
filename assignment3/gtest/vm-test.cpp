@@ -2,7 +2,17 @@
 #include "gtest/gtest.h"
 #include <vmm.h>
 #include <scheduler.h>
-
+/*
+Store 1 5
+Store 2 3
+Store 3 7
+Lookup 3
+Lookup 2
+Release 1
+Store 1 8
+Lookup 1
+Lookup 2
+*/
 class vm_test : public ::testing::Test {
 	protected:
 	virtual void SetUp() {
@@ -46,4 +56,85 @@ TEST_F(vm_test, readCommands) {
   }
 
   ASSERT_EQ(5, test_vector[0].value);
+}
+
+TEST_F(vm_test, memFreeTest) {
+  vmm test(1);
+  test.memStore("1", 2);
+  test.memStore("2", 3);
+  ASSERT_STREQ("1", test.page_table[0].variableId.c_str());
+  test.memFree("1");
+  ASSERT_EQ(0, test.page_table.size());
+  ASSERT_EQ(1, test.virtual_memory.size());
+  test.memFree("2");
+  ASSERT_EQ(0, test.virtual_memory.size());
+}
+
+TEST_F(vm_test, memSwapTest) {
+  vmm test(1);
+  test.memStore("1", 2);
+  test.memStore("2", 3);
+
+  ASSERT_STREQ("1", test.page_table[0].variableId.c_str());
+  ASSERT_STREQ("2", test.virtual_memory[0].variableId.c_str());
+  test.swap_memory("2");
+
+  ASSERT_STREQ("2", test.page_table[0].variableId.c_str());
+  ASSERT_STREQ("1", test.virtual_memory[0].variableId.c_str());
+}
+
+TEST_F(vm_test, memAccessTimeTest) {
+  vmm test(2);
+  test.memStore("1", 2);
+  sleep(1);
+  test.memStore("2", 3);
+  sleep(1);
+  ASSERT_LT(test.page_table[0].lastAccessTime, test.page_table[1].lastAccessTime);
+  test.memLookup("1");
+
+  ASSERT_GT(test.page_table[0].lastAccessTime, test.page_table[1].lastAccessTime);
+
+}
+
+TEST_F(vm_test, memLookupTest) {
+  vmm test(1);
+  test.memStore("1", 2);
+  variable_t tmp;
+  tmp.value = 5;
+  tmp.variableId = "9";
+  test.virtual_memory.push_back(tmp);
+
+  ASSERT_EQ(1, test.page_table.size());
+  ASSERT_STREQ("1", test.page_table[0].variableId.c_str());
+  test.memLookup("9");
+  ASSERT_STREQ("9", test.page_table[0].variableId.c_str());
+}
+
+TEST_F(vm_test, executeCommands) {
+  vmm test(2);
+  std::vector<command_t> cmds = read_commands("commands.txt");
+  while(test.execute_next_command(cmds))
+  {
+    cmds.erase(cmds.begin());
+  }
+}
+
+TEST_F(vm_test, LookupSwap) {
+  vmm test(2);
+  test.memStore("1", 2);
+  test.memStore("2", 3);
+  test.memStore("3", 4);
+  test.memLookup("3");
+    long            ms; // Milliseconds
+    time_t          s;  // Seconds
+    struct timespec spec;
+
+    clock_gettime(CLOCK_REALTIME, &spec);
+
+    s  = spec.tv_sec;
+    ms = round(spec.tv_nsec / 1000000); // Convert nanoseconds to milliseconds
+    printf("nano seconds: %d\n", spec.tv_nsec/1000000);
+
+    printf("Current time: %d.%03ld seconds since the Epoch\n",
+           (intmax_t)s, ms);
 }

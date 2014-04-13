@@ -16,17 +16,16 @@ int vmm::memStore(std::string variableId, unsigned int value)
   time_t rawtime;
   time (&rawtime);
   tmp.lastAccessTime = rawtime;
+  clock_gettime(CLOCK_REALTIME, &tmp.access_time);
   tmp.variableId = variableId;
   tmp.value = value;
-  struct tm * timeinfo;
-  timeinfo = localtime (&rawtime);
 
   // Verify we have enough space in main memory
   if(page_table.size() >= max_size)
   {
     // No more space, append to disk space
     if(DEBUG) {
-      printf("Writing to disk %s %d %s", variableId.c_str(), value, asctime(timeinfo));
+//      printf("Writing to disk %s %d %s", variableId.c_str(), value, asctime(timeinfo));
     }
     virtual_memory.push_back(tmp);
     fp = fopen("vm.txt", "a");
@@ -52,9 +51,9 @@ void vmm::memFree(std::string variableId)
   }
 
   // Search in disk for variableId
-  for (int i = 0; i < page_table.size(); i++) {
-    if(page_table[i].variableId == variableId) {
-      page_table.erase(page_table.begin() + i);
+  for (int i = 0; i < virtual_memory.size(); i++) {
+    if(virtual_memory[i].variableId == variableId) {
+      virtual_memory.erase(virtual_memory.begin() + i);
     }
   }
 }
@@ -70,6 +69,7 @@ int vmm::memLookup(std::string variableId)
       time_t rawtime;
       time (&rawtime);
       page_table[i].lastAccessTime = rawtime;
+      clock_gettime(CLOCK_REALTIME, &page_table[i].access_time);
       return page_table[i].value;
     }
   }
@@ -85,23 +85,23 @@ void vmm::swap_memory(std::string variableId)
 {
   // Least recently accessed variable, or smallest last access time should be swapped
   int index; // index for least recently accessed variable
-  int smallest_time = 10000;
-  variable_t tmp;
-  time_t rawtime;
-  time (&rawtime);
-  tmp.lastAccessTime = rawtime;
+  int smallest_time = page_table[0].lastAccessTime;
 
   // Search for element with smallest last access time and keep the index
   for(int i = 0; i < page_table.size(); ++i)
   {
-    struct tm * timeinfo = localtime(&page_table[i].lastAccessTime);
-    int curr_time = timeinfo->tm_min * 100;
-    curr_time += timeinfo->tm_sec;
-    if(curr_time < smallest_time)
-    {
+    time_t curr_time = page_table[i].lastAccessTime;
+    if(curr_time <= smallest_time)
+    {   
       smallest_time = curr_time;
       index = i;
+    }   
+    if(curr_time == smallest_time)
+    {
     }
+  }
+  if(DEBUG) {
+    printf("SWAP: Variable %s from disk with %s from main\n", variableId.c_str(), page_table[index].variableId.c_str());
   }
 
   // Append variable from main memory to vm.txt
@@ -113,12 +113,54 @@ void vmm::swap_memory(std::string variableId)
   // Insert variableid from disk to main memory
   for (int i = 0; i < virtual_memory.size(); i++) {
     if(virtual_memory[i].variableId == variableId) {
+      time_t rawtime;
+      time (&rawtime);
+      virtual_memory[i].lastAccessTime = rawtime;
+      clock_gettime(CLOCK_REALTIME, &virtual_memory[i].access_time);
       page_table.push_back(virtual_memory[i]);
       // Remove variableId from disk
       virtual_memory.erase(virtual_memory.begin() + i);
       break;
     }
   }
+}
+
+bool vmm::execute_next_command(std::vector<command_t> cmd_list)
+{
+  if(cmd_list.size() != 0 )
+  {
+    command_t curr_cmd = cmd_list.front();
+    cmd_list.erase(cmd_list.begin());
+    if(strcmp(curr_cmd.command.c_str(), "Store") == 0)
+    {
+      if(DEBUG) {
+        printf("Store %s %d\n", curr_cmd.variableId.c_str(), curr_cmd.value);
+    }
+      memStore(curr_cmd.variableId, curr_cmd.value);
+      return 1;
+    }  
+    else if (strcmp(curr_cmd.command.c_str(), "Release") == 0)
+    {
+      if(DEBUG) {
+        printf("Release %s\n", curr_cmd.variableId.c_str());
+      }
+      memFree(curr_cmd.variableId.c_str());
+      return 1;
+    }
+    else if (strcmp(curr_cmd.command.c_str(), "Lookup") == 0)
+    {
+      if(DEBUG) {
+        printf("Lookup %s\n", curr_cmd.variableId.c_str());
+      }
+      memLookup(curr_cmd.variableId);
+      return 1;
+    }
+    else {
+      printf("Unknown command\n");
+      return 0;
+    }
+  }
+  return 0;
 }
 
 void vmm::handle_page_fault(void)

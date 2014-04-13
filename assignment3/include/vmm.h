@@ -5,11 +5,15 @@
 #include <vector>
 #include <stdio.h>
 #include <time.h>
+#include <scheduler.h>
+#include <inttypes.h>
+#include <math.h>
 
 typedef struct {
   int value;
   std::string variableId;
   time_t lastAccessTime;
+  struct timespec access_time;
 } variable_t;
 
 class vmm
@@ -27,6 +31,7 @@ public:
   void swap_memory(std::string variableId);
   void handle_page_fault();
   void vmm_log(int pid, std::string event, std::string variableId, int value);
+  bool execute_next_command(std::vector<command_t> cmd_list);
 
 };
 
