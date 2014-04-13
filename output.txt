@@ -52,3 +52,9 @@ Time: 1, Process 0: finished
 Time: 1, Process 2: resumed
 Time: 1, Process 2: paused
 Time: 1, Process 2: finished
+Time: 1, Process 2: resumed
+Time: 1, Process 2: paused
+Time: 1, Process 2: resumed
+Time: 1, Process 2: paused
+Time: 1, Process 2: resumed
+Time: 1, Process 2: paused

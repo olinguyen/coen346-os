@@ -12,12 +12,12 @@
 #include <algorithm>
 #include <fstream>
 
+
 // Holds information of a thread for the scheduler
 typedef struct {
   double quantum;        // quantum for a given run
   double remaining_time; // Execution time left
   int arrival_time;      // Time process is ready
-  double waiting_time;   // Time spent in waiting queue
   double duration;       // Total time spent running so far
   int id;
   bool isReady;
@@ -38,6 +38,7 @@ void start_rr(); // scheduling used by main(scheduler thread)
 void print_queue(std::deque<process_t>);
 void log(int processId, char* state);
 void checkArrivalTime();
+int read_processes(const char *filename);
 std::vector<command_t> read_commands(const char* filename);
 
 #endif

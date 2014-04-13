@@ -96,10 +96,16 @@ int vmm::memLookup(std::string variableId)
     }
   }
 
-  // Look up in disk space, handle page fault
-  swap_memory(variableId);
+  // Look up in disk space, handle page fault if it occurs
+  for (int i = 0; i < virtual_memory.size(); i++) {
+    if(virtual_memory[i].variableId == variableId) {
+      swap_memory(variableId);
+      return page_table.back().value;  
+    }
+  } 
 
-  return 1;
+  // variable does not exist in main memory
+  return -1;
 }
 
 // This function will find the least recently accessed variable in main memory and swap it with the element with variableId in disk
@@ -120,7 +126,7 @@ void vmm::swap_memory(std::string variableId)
     }
   }
   if(DEBUG) {
-    printf("SWAP: Variable %s from disk with %s from main\n", variableId.c_str(), page_table[index].variableId.c_str());
+    printf("Memory Manager SWAP: Variable %s from disk with %s from main\n", variableId.c_str(), page_table[index].variableId.c_str());
   }
 
   // Append variable from main memory to vm.txt
@@ -141,6 +147,7 @@ void vmm::swap_memory(std::string variableId)
   }
 }
 
+// Threads will call upon this command to run the next instruction in the queue
 bool vmm::execute_next_command(std::vector<command_t> cmd_list)
 {
   if(cmd_list.size() != 0 )
@@ -178,9 +185,3 @@ bool vmm::execute_next_command(std::vector<command_t> cmd_list)
   }
   return 0;
 }
-
-void vmm::handle_page_fault(void)
-{
-  // Look up in vm.txt
-}
-

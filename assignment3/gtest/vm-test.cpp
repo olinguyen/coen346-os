@@ -107,11 +107,11 @@ TEST_F(vm_test, executeCommands) {
 }
 
 TEST_F(vm_test, LookupSwap) {
-  vmm test(2);
-  test.memStore("1", 2);
+  vmm test(2); test.memStore("1", 2);
   test.memStore("2", 3);
   test.memStore("3", 4);
-  test.memLookup("3");
+  int result = test.memLookup("3");
+  ASSERT_EQ(4, result);
   for(int i = 0;i < test.page_table.size(); ++i)
   {
     ASSERT_STRNE( "1", test.page_table[i].variableId.c_str() );

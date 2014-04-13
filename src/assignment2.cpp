@@ -33,8 +33,11 @@ int thread_count = 0;
 
 // Used to indicate which PID should be running
 int process_to_run;
+int ps_cpu_1;
+int ps_cpu_2;
 
 int g_time = 1;
+double _clock = 1.0;
 
 // Holds information of a thread for the scheduler
 typedef struct {
@@ -47,22 +50,6 @@ typedef struct {
   bool isFinished;
   double burst_time;     // total of time execution needed
 } process_t;
-
-struct shortest_arrival_time
-{
-  inline bool operator() (const process_t& struct1, const process_t& struct2)
-  {
-    return (struct1.remaining_time < struct2.remaining_time);
-  }
-};
-
-struct longest_arrival_time
-{
-  inline bool operator() (const process_t& struct1, const process_t& struct2)
-  {
-    return (struct1.arrival_time < struct2.arrival_time);
-  }
-};
 
 std::deque<process_t> running_queue;
 std::deque<process_t> waiting_queue;
@@ -80,6 +67,21 @@ void checkArrivalTime();
 
 int main(int argc, const char *argv[])
 {
+  read_input("input.txt");
+  init_flag();
+  pthread_t threads[thread_count];
+  printf("%.3f\n", _clock);
+
+  for (int i = 0; i < thread_count; i++) {
+    pthread_create(&threads[i], NULL, run_process, (void*)&waiting_queue[i]);
+  }
+  set_thread_flag(2);
+  // Sleep until cpu is returned to scheduler
+  pthread_mutex_lock(&thread_flag_mutex);
+  while (process_to_run != 0) {
+    pthread_cond_wait(&thread_flag_cv, &thread_flag_mutex);
+  }
+  pthread_mutex_unlock(&thread_flag_mutex);
   /*
   if (argc == 2) {
     const char* filepath = argv[1];
@@ -93,9 +95,9 @@ int main(int argc, const char *argv[])
     start_rr();
     output = fopen("output.txt", "a");
     for (int i = 0; i < running_queue.size(); i++) {
-        fprintf(output, "Process %d has initial burst time %f\n"
+        fprintf(output, "Process %d has initial burst time %.3f\n"
             , running_queue[i].id, running_queue[i].duration);
-        printf("Process %d has initial burst time %f\n"
+        printf("Process %d has initial burst time %.3f\n"
             , running_queue[i].id, running_queue[i].duration);
     }
 
@@ -106,20 +108,6 @@ int main(int argc, const char *argv[])
     printf ("./assignment2 <input_filename>\n");
   }
   */
-  read_input("input.txt");
-  init_flag();
-  pthread_t threads[thread_count];
-
-  for (int i = 0; i < thread_count; i++) {
-    pthread_create(&threads[i], NULL, run_process, (void*)&waiting_queue[i]);
-  }
-  set_thread_flag(2);
-  // Sleep until cpu is returned to scheduler
-  pthread_mutex_lock(&thread_flag_mutex);
-  while (process_to_run != 0) {
-    pthread_cond_wait(&thread_flag_cv, &thread_flag_mutex);
-  }
-  pthread_mutex_unlock(&thread_flag_mutex);
 
   return 0;
 }
@@ -129,7 +117,7 @@ void* run_process(void* a)
   process_t* info = (process_t*)a;
   int id;
   // Run thread until reaches total burst time
-  printf("process started with burst time %f\n", info->burst_time);
+  printf("process started with burst time %.3f\n", info->burst_time);
   while(info->burst_time - info->duration > EPSILON) {
     // Lock mutex before accessing flag value
     pthread_mutex_lock(&thread_flag_mutex);
@@ -141,7 +129,7 @@ void* run_process(void* a)
     pthread_mutex_unlock(&thread_flag_mutex);
 
     log(info->id, "resumed");
-    printf("Time %d, Process %d resumed with remaining time %f\n", g_time, info->id, info->remaining_time);
+    printf("Time %d, Process %d resumed with remaining time %.3f\n", g_time, info->id, info->remaining_time);
     struct timespec start, stop;
     double runTime = 0.0;
 
@@ -150,7 +138,7 @@ void* run_process(void* a)
       return NULL;
     }
     // Run for 10% of remaining time
-    double quantum = 3.0;
+    double quantum = 0.3;
     while(runTime < quantum) {
 
       if( clock_gettime( CLOCK_REALTIME, &stop) == -1 ) {
@@ -178,12 +166,12 @@ void* run_process(void* a)
     if(DEBUG)
       printf( "Run time: %lf\n", quantum);
     log(info->id, "paused");
-    printf("Time %d, Process %d paused with remaining time: %f\n", g_time, info->id, info->remaining_time);
+    printf("Time %d, Process %d paused with remaining time: %.3f\n", g_time, info->id, info->remaining_time);
     // Return CPU to scheduler
     set_thread_flag(0);
   }
   info->isFinished = running_queue[id].isFinished = true;
-  printf("Time %d, Process %d finished with run time %f\n", g_time, info->id, info->duration);
+  printf("Time %d, Process %d finished with run time %.3f\n", g_time, info->id, info->duration);
   log(info->id, "finished");
 
   return NULL;
@@ -204,12 +192,10 @@ void start_rr()
 {
   bool areProcessFinished;
   printf("Starting round-robin scheduler\n");
-  std::sort(waiting_queue.begin(), waiting_queue.end(), longest_arrival_time());
   while(1) {
     areProcessFinished = true;
     // Add to run queue
     checkArrivalTime();
-    std::sort(running_queue.begin(), running_queue.end(), shortest_arrival_time());
 
     // Run all processes in run queue
     for (int i = 0; i < running_queue.size(); i++) {
@@ -228,7 +214,6 @@ void start_rr()
         checkArrivalTime();
       }
     }
-    std::sort(running_queue.begin(), running_queue.end(), shortest_arrival_time());
     if (waiting_queue.size() == 0) {
       for (int i = 0 ; i < running_queue.size() ; ++i) {
           if (!running_queue[i].isFinished) {
@@ -253,7 +238,7 @@ void init_flag()
 void print_queue(std::deque<process_t> queue)
 {
   for (unsigned i = 0; i < queue.size(); i++) {
-    printf("id = %d, arrival = %d, remaining time = %f, execution time = %f\n"
+    printf("id = %d, arrival = %d, remaining time = %.3f, execution time = %.3f\n"
         , queue.at(i).id, queue[i].arrival_time, queue[i].remaining_time
             , queue[i].duration);
   }

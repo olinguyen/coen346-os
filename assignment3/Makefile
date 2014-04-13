@@ -6,4 +6,4 @@ CC=g++
 INCPATH=-I./include/
 
 all:
-	$(CC) $(CFLAGS) $(INCPATH) src/*.cpp -o bin/assignment3
+	$(CC) $(CFLAGS) $(INCPATH) src/*.cpp -lpthread -o bin/assignment3

@@ -1,0 +1,6 @@
+Time: 1, Process 2: resumed
+Time: 1, Process 2: paused
+Time: 1, Process 2: resumed
+Time: 1, Process 2: paused
+Time: 1, Process 2: resumed
+Time: 1, Process 2: paused
