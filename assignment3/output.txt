@@ -1,6 +1,25 @@
-Time: 1, Process 2: resumed
-Time: 1, Process 2: paused
-Time: 1, Process 2: resumed
-Time: 1, Process 2: paused
-Time: 1, Process 2: resumed
-Time: 1, Process 2: paused
+Clock: 1.000, Process 2: Started.
+Clock: 1.000, Process 2, Resumed
+Clock: 1.300, Process 2, Store: Variable 1, Value: 5
+Clock: 1.350, Process 2, Store: Variable 2, Value: 3
+Clock: 2.000, Process 2, Paused
+Clock: 2.000, Process 1, Started.
+Clock: 2.000, Process 1, Resumed
+Clock: 2.000, Process 2, Resumed
+Clock: 2.300, Process 1, Store: Variable 3, Value: 7
+Clock: 2.600, Memory Manager, SWAP: Variable 3 with Variable 1
+Clock: 2.580, Process 2, Lookup: Variable 3, Value: 7
+Clock: 3.000, Process 2, Paused
+Clock: 3.000, Process 2, Finished
+Clock: 3.000, Process 1, Paused
+Clock: 3.000, Process 1, Finished
+Clock: 3.000, Process 3: Started.
+Clock: 2.000, Process 3, Resumed
+Clock: 3.400, Process 3, Lookup: Variable 2, Value: 3
+Clock: 3.830, Process 3, Release: Variable 1
+Clock: 4.000, Process 3, Paused
+Clock: 4.400, Process 3, Store: Variable 1, Value 8
+Clock: 4.900, Memory Manager, SWAP: Variable 1 with Variable 3
+Clock: 4.990, Process 3, Lookup: Variable 1, Value 8
+Clock: 5.000, Process 3: Paused.
+Clock: 5.000, Process 3: Finished.
