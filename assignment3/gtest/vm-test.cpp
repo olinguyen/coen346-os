@@ -125,6 +125,10 @@ TEST_F(vm_test, LookupSwap) {
   test.memStore("2", 3);
   test.memStore("3", 4);
   test.memLookup("3");
+  for(int i = 0;i < test.page_table.size(); ++i)
+  {
+    ASSERT_STRNE( "1", test.page_table[i].variableId.c_str() );
+  }
 
 }
 
@@ -136,6 +140,4 @@ TEST_F(vm_test, timespecTest) {
   struct timespec result;
   int ret_value = timespec_subtract(&result, &test.page_table[0].access_time, &test.page_table[1].access_time);
   ASSERT_EQ(1, ret_value);
-
-
 }

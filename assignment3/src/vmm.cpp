@@ -109,21 +109,17 @@ void vmm::swap_memory(std::string variableId)
 {
   // Least recently accessed variable, or smallest last access time should be swapped
   int index = 0; // index for least recently accessed variable
-  int smallest_time = 1000000;
+  struct timespec smallest_time = page_table[0].access_time;
 
   // Search for element with smallest last access time and keep the index
-  for(int i = 0; i < page_table.size(); ++i)
+  for(int i = 1; i < page_table.size(); ++i)
   {
-    time_t s = page_table[i].lastAccessTime;
-    long ms; // Milliseconds
-    ms = page_table[i].access_time.tv_nsec / 1000000; // Convert nanoseconds to milliseconds
-    int curr_time = s % 10000;
-    curr_time += ms;
-    printf("Time: %d\n", curr_time);
-    if(curr_time < smallest_time) {
-      index = i;
-    }
+    struct timespec result;
+    int ret = timespec_subtract(&result, &smallest_time, &page_table[i].access_time);
 
+    if(ret == 1) {
+      index = i - 1;
+    }
   }
   if(DEBUG) {
     printf("SWAP: Variable %s from disk with %s from main\n", variableId.c_str(), page_table[index].variableId.c_str());
