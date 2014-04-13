@@ -1,6 +1,7 @@
 #include "../include/vmm.h"
 
 #define DEBUG 1
+extern double g_clock;
 
 vmm::vmm(int size)
 {
@@ -66,8 +67,6 @@ int vmm::memStore(std::string variableId, unsigned int value)
 // This instruction removes the variable Id and its value from the memory , so the page which was holding this variable becomes available for storage.
 void vmm::memFree(std::string variableId)
 {
-  //TODO: Should this be removed from disk space as well?
-
   // Search in memory for variableId
   for (int i = 0; i < page_table.size(); i++) {
     if(page_table[i].variableId == variableId) {
@@ -128,7 +127,12 @@ void vmm::swap_memory(std::string variableId)
   if(DEBUG) {
     printf("Memory Manager SWAP: Variable %s from disk with %s from main\n", variableId.c_str(), page_table[index].variableId.c_str());
   }
-
+  // log to file
+  FILE* out;
+  out = fopen("output.txt", "a"); 
+  fprintf(out, "Clock %.3f, Memory Manager, SWAP: Variable %s with Variable %s", g_clock, variableId.c_str(), page_table[index].variableId.c_str());
+  fclose(out);
+  
   // Append variable from main memory to vm.txt
   virtual_memory.push_back(page_table[index]);
 

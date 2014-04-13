@@ -27,7 +27,7 @@ int main(int argc, const char *argv[])
 {
   // Read all inputs
   vm_manager = get_main_memory(memconfig);
-   cmds = read_commands(commands);
+  cmds = read_commands(commands);
   read_processes(processes);
   init_flag();
   pthread_t threads[thread_count];

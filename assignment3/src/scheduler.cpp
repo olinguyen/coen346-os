@@ -4,13 +4,14 @@
 #define BILLION  1000000000L
 #define EPSILON  0.00000001
 #define DEBUG 0
+#define PROCESSORS 2
 
 const char* cmd_path = "commands.txt";
 extern vmm* vm_manager;
 extern std::vector<command_t> cmds;
 
 FILE* output;
-int process_to_run;
+int process_to_run[PROCESSORS];
 int thread_count = 0;
 int g_time = 1;
 double g_clock= 1.0;
@@ -32,18 +33,19 @@ void* run_process(void* a)
   process_t* info = (process_t*)a;
   int id;
   // Run thread until reaches total burst time
-  printf("process started with burst time %.3f\n", info->burst_time);
+//  printf("process started with burst time %.3f\n", info->burst_time);
   while(info->burst_time - info->duration > EPSILON) {
     // Lock mutex before accessing flag value
     pthread_mutex_lock(&thread_flag_mutex);
     // Check if the current thread is given CPU
-    while (process_to_run != info->id) {
+    while (process_to_run[0] != info->id && process_to_run[1] != info->id)     {
       pthread_cond_wait(&thread_flag_cv, &thread_flag_mutex);
     }
 
     pthread_mutex_unlock(&thread_flag_mutex);
 
     log(info->id, "resumed");
+    if(DEBUG)
     printf("Time %d, Process %d resumed with remaining time %.3f\n", g_time, info->id, info->remaining_time);
     struct timespec start, stop;
     double runTime = 0.0;
@@ -65,6 +67,12 @@ void* run_process(void* a)
       // Execute next instruction
       vm_manager->execute_next_command(cmds);
 
+      // Log to file
+      FILE* out;
+      out = fopen("output.txt", "a");
+      fprintf(out, "Clock %.3f, Process %d: Variable %s, Value %d\n", g_clock, info->id, cmds[0].command.c_str(), cmds[0].variableId.c_str(), cmds[0].value);
+      fclose(out);
+
       runTime = ( stop.tv_sec - start.tv_sec )
              + (double)( stop.tv_nsec - start.tv_nsec )
                / (double)BILLION;
@@ -83,26 +91,29 @@ void* run_process(void* a)
     running_queue[id].remaining_time = info->remaining_time;
 
 
-    if(DEBUG)
+    if(DEBUG) {
       printf( "Run time: %lf\n", quantum);
+      printf("Time %d, Process %d paused with remaining time: %.3f\n", g_time, info->id, info->remaining_time);
+    }
     log(info->id, "paused");
-    printf("Time %d, Process %d paused with remaining time: %.3f\n", g_time, info->id, info->remaining_time);
     // Return CPU to scheduler
-    set_thread_flag(0);
+    set_thread_flag(0,0);
   }
   info->isFinished = running_queue[id].isFinished = true;
-  printf("Time %d, Process %d finished with run time %.3f\n", g_time, info->id, info->duration);
+  if(DEBUG)
+    printf("Time %d, Process %d finished with run time %.3f\n", g_time, info->id, info->duration);
   log(info->id, "finished");
 
   return NULL;
 }
 
-void set_thread_flag(int flag_value)
+void set_thread_flag(int flag_value, int flag2)
 {
   // Lock mutex before accessing flag value
   pthread_mutex_lock(&thread_flag_mutex);
   // Set thread value, then signal in case run_process is blocked waiting for flag to be set
-  process_to_run = flag_value;
+  process_to_run[0] = flag_value;
+  process_to_run[1] = flag2;
   pthread_cond_broadcast(&thread_flag_cv);
   // Unlock mutex
   pthread_mutex_unlock(&thread_flag_mutex);
@@ -111,7 +122,8 @@ void set_thread_flag(int flag_value)
 void start_rr()
 {
   bool areProcessFinished;
-  printf("Starting round-robin scheduler\n");
+  if(DEBUG)
+    printf("Starting round-robin scheduler\n");
   while(1) {
     areProcessFinished = true;
     // Add to run queue
@@ -122,14 +134,15 @@ void start_rr()
       if (!running_queue[i].isFinished) {// Wake first pid in queue and give it the CPU
         if(DEBUG)
           print_queue(running_queue);
-        set_thread_flag(running_queue[i].id);
+        set_thread_flag(running_queue[i].id, running_queue[i+1].id);
         // Sleep until cpu is returned to scheduler
         pthread_mutex_lock(&thread_flag_mutex);
-        while (process_to_run != 0) {
+        while (process_to_run[0] != 0 && process_to_run[1] != 0) {
           pthread_cond_wait(&thread_flag_cv, &thread_flag_mutex);
         }
         pthread_mutex_unlock(&thread_flag_mutex);
-        printf("Scheduler resumed\n");
+        if(DEBUG)
+          printf("Scheduler resumed\n");
         g_time++;
         checkArrivalTime();
       }
@@ -152,7 +165,8 @@ void init_flag()
 {
   pthread_mutex_init(&thread_flag_mutex, NULL);
   pthread_cond_init(&thread_flag_cv, NULL);
-  process_to_run = 0;
+  process_to_run[0] = 0;
+  process_to_run[1] = 0;
 }
 
 void log(int processId, char* state)

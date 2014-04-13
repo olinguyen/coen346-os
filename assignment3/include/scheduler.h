@@ -33,7 +33,7 @@ typedef struct {
 
 void* run_process(void* a); // Thread function that will simulate a process
 void init_flag(); // Initializes  mutex and condition variables
-void set_thread_flag(int flag_value); // Gives CPU tp a specific thread
+void set_thread_flag(int flag_value, int flag2); // Gives CPU tp a specific thread
 void start_rr(); // scheduling used by main(scheduler thread)
 void print_queue(std::deque<process_t>);
 void log(int processId, char* state);
