@@ -125,16 +125,17 @@ TEST_F(vm_test, LookupSwap) {
   test.memStore("2", 3);
   test.memStore("3", 4);
   test.memLookup("3");
-    long            ms; // Milliseconds
-    time_t          s;  // Seconds
-    struct timespec spec;
 
-    clock_gettime(CLOCK_REALTIME, &spec);
+}
 
-    s  = spec.tv_sec;
-    ms = round(spec.tv_nsec / 1000000); // Convert nanoseconds to milliseconds
-    printf("nano seconds: %d\n", spec.tv_nsec/1000000);
+TEST_F(vm_test, timespecTest) {
+  vmm test(2);
+  test.memStore("1", 2);
+  test.memStore("2", 3);
+  
+  struct timespec result;
+  int ret_value = timespec_subtract(&result, &test.page_table[0].access_time, &test.page_table[1].access_time);
+  ASSERT_EQ(1, ret_value);
 
-    printf("Current time: %d.%03ld seconds since the Epoch\n",
-           (intmax_t)s, ms);
+
 }

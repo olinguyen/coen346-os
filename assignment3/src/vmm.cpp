@@ -7,6 +7,30 @@ vmm::vmm(int size)
   max_size = size;
 }
 
+int
+timespec_subtract (struct timespec* result, struct timespec* x, struct timespec* y)
+ {
+   /* Perform the carry for the later subtraction by updating y. */
+   if (x->tv_nsec < y->tv_nsec) {
+     int nsec = (y->tv_nsec - x->tv_nsec) / 1000000 + 1;
+     y->tv_nsec -= 1000000 * nsec;
+     y->tv_sec += nsec;
+   }
+   if (x->tv_nsec - y->tv_nsec > 1000000) {
+     int nsec = (x->tv_nsec - y->tv_nsec) / 1000000;
+     y->tv_nsec += 1000000 * nsec;
+     y->tv_sec -= nsec;
+   }
+
+   /* Compute the time remaining to wait.
+      tv_nsec is certainly positive. */
+   result->tv_sec = x->tv_sec - y->tv_sec;
+   result->tv_nsec = x->tv_nsec - y->tv_nsec;
+
+   /* Return 1 if result is negative. */
+   return x->tv_sec < y->tv_sec;
+ }
+
 // This instruction stores the given variableId and its value in the first unassigned spot in the memory
 int vmm::memStore(std::string variableId, unsigned int value)
 {
@@ -84,21 +108,22 @@ int vmm::memLookup(std::string variableId)
 void vmm::swap_memory(std::string variableId)
 {
   // Least recently accessed variable, or smallest last access time should be swapped
-  int index; // index for least recently accessed variable
-  int smallest_time = page_table[0].lastAccessTime;
+  int index = 0; // index for least recently accessed variable
+  int smallest_time = 1000000;
 
   // Search for element with smallest last access time and keep the index
   for(int i = 0; i < page_table.size(); ++i)
   {
-    time_t curr_time = page_table[i].lastAccessTime;
-    if(curr_time <= smallest_time)
-    {   
-      smallest_time = curr_time;
+    time_t s = page_table[i].lastAccessTime;
+    long ms; // Milliseconds
+    ms = page_table[i].access_time.tv_nsec / 1000000; // Convert nanoseconds to milliseconds
+    int curr_time = s % 10000;
+    curr_time += ms;
+    printf("Time: %d\n", curr_time);
+    if(curr_time < smallest_time) {
       index = i;
-    }   
-    if(curr_time == smallest_time)
-    {
     }
+
   }
   if(DEBUG) {
     printf("SWAP: Variable %s from disk with %s from main\n", variableId.c_str(), page_table[index].variableId.c_str());
@@ -167,3 +192,4 @@ void vmm::handle_page_fault(void)
 {
   // Look up in vm.txt
 }
+

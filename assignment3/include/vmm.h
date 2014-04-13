@@ -34,5 +34,8 @@ public:
   bool execute_next_command(std::vector<command_t> cmd_list);
 
 };
+int
+timespec_subtract (struct timespec* result, struct timespec* x, struct timespec* y);
+
 
 #endif
