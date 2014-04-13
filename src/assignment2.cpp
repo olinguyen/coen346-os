@@ -26,7 +26,7 @@ FILE* output;
 
 #define BILLION  1000000000L
 #define EPSILON  0.00000001
-#define DEBUG 0
+#define DEBUG 1
 
 // Used to keep track of older threads and their count
 int thread_count = 0;
@@ -41,7 +41,6 @@ typedef struct {
   double quantum;        // quantum for a given run
   double remaining_time; // Execution time left
   int arrival_time;      // Time process is ready
-  double waiting_time;   // Time spent in waiting queue
   double duration;       // Total time spent running so far
   int id;
   bool isReady;
@@ -81,6 +80,7 @@ void checkArrivalTime();
 
 int main(int argc, const char *argv[])
 {
+  /*
   if (argc == 2) {
     const char* filepath = argv[1];
     read_input(filepath);
@@ -93,10 +93,10 @@ int main(int argc, const char *argv[])
     start_rr();
     output = fopen("output.txt", "a");
     for (int i = 0; i < running_queue.size(); i++) {
-        fprintf(output, "Process %d has waiting time %f with initial burst time %f\n"
-            , running_queue[i].id, running_queue[i].waiting_time, running_queue[i].duration);
-        printf("Process %d has waiting time %f with initial burst time %f\n"
-            , running_queue[i].id, running_queue[i].waiting_time, running_queue[i].duration);
+        fprintf(output, "Process %d has initial burst time %f\n"
+            , running_queue[i].id, running_queue[i].duration);
+        printf("Process %d has initial burst time %f\n"
+            , running_queue[i].id, running_queue[i].duration);
     }
 
     fclose(output);
@@ -105,6 +105,21 @@ int main(int argc, const char *argv[])
     printf ("wrong number of arguments passed, program should be used as following:\n");
     printf ("./assignment2 <input_filename>\n");
   }
+  */
+  read_input("input.txt");
+  init_flag();
+  pthread_t threads[thread_count];
+
+  for (int i = 0; i < thread_count; i++) {
+    pthread_create(&threads[i], NULL, run_process, (void*)&waiting_queue[i]);
+  }
+  set_thread_flag(2);
+  // Sleep until cpu is returned to scheduler
+  pthread_mutex_lock(&thread_flag_mutex);
+  while (process_to_run != 0) {
+    pthread_cond_wait(&thread_flag_cv, &thread_flag_mutex);
+  }
+  pthread_mutex_unlock(&thread_flag_mutex);
 
   return 0;
 }
@@ -114,6 +129,7 @@ void* run_process(void* a)
   process_t* info = (process_t*)a;
   int id;
   // Run thread until reaches total burst time
+  printf("process started with burst time %f\n", info->burst_time);
   while(info->burst_time - info->duration > EPSILON) {
     // Lock mutex before accessing flag value
     pthread_mutex_lock(&thread_flag_mutex);
@@ -134,7 +150,7 @@ void* run_process(void* a)
       return NULL;
     }
     // Run for 10% of remaining time
-    double quantum = 0.1 * info->remaining_time;
+    double quantum = 3.0;
     while(runTime < quantum) {
 
       if( clock_gettime( CLOCK_REALTIME, &stop) == -1 ) {
@@ -158,14 +174,6 @@ void* run_process(void* a)
     running_queue[id].duration = info->duration;
     running_queue[id].remaining_time = info->remaining_time;
 
-    for (int i = 0 ; i < running_queue.size() ; ++i) {
-      if(i != id) {
-        running_queue[i].waiting_time += quantum;
-      }
-    }
-    for (int i = 0; i < waiting_queue.size() ; i++) {
-        waiting_queue[i].waiting_time += quantum;
-    }
 
     if(DEBUG)
       printf( "Run time: %lf\n", quantum);
@@ -175,7 +183,7 @@ void* run_process(void* a)
     set_thread_flag(0);
   }
   info->isFinished = running_queue[id].isFinished = true;
-  printf("Time %d, Process %d finished\n", g_time, info->id);
+  printf("Time %d, Process %d finished with run time %f\n", g_time, info->id, info->duration);
   log(info->id, "finished");
 
   return NULL;
@@ -194,7 +202,6 @@ void set_thread_flag(int flag_value)
 
 void start_rr()
 {
-  double wait_time [thread_count];
   bool areProcessFinished;
   printf("Starting round-robin scheduler\n");
   std::sort(waiting_queue.begin(), waiting_queue.end(), longest_arrival_time());
@@ -246,9 +253,9 @@ void init_flag()
 void print_queue(std::deque<process_t> queue)
 {
   for (unsigned i = 0; i < queue.size(); i++) {
-    printf("id = %d, arrival = %d, remaining time = %f, execution time = %f, waiting time = %f\n"
+    printf("id = %d, arrival = %d, remaining time = %f, execution time = %f\n"
         , queue.at(i).id, queue[i].arrival_time, queue[i].remaining_time
-            , queue[i].duration, queue[i].waiting_time);
+            , queue[i].duration);
   }
 }
 
@@ -268,7 +275,6 @@ int read_input(const char* filename)
   while ( fscanf (fp, "%d %f", &y, &i ) != EOF )
   {
     process_t* temp = new process_t;
-    temp->waiting_time = temp->duration =  0.0;
     temp->isFinished = temp->isReady = false;
     temp->arrival_time = y;
     temp->remaining_time = temp->burst_time = i;
