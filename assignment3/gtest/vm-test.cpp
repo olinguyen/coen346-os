@@ -83,19 +83,6 @@ TEST_F(vm_test, memSwapTest) {
   ASSERT_STREQ("1", test.virtual_memory[0].variableId.c_str());
 }
 
-TEST_F(vm_test, memAccessTimeTest) {
-  vmm test(2);
-  test.memStore("1", 2);
-  sleep(1);
-  test.memStore("2", 3);
-  sleep(1);
-  ASSERT_LT(test.page_table[0].lastAccessTime, test.page_table[1].lastAccessTime);
-  test.memLookup("1");
-
-  ASSERT_GT(test.page_table[0].lastAccessTime, test.page_table[1].lastAccessTime);
-
-}
-
 TEST_F(vm_test, memLookupTest) {
   vmm test(1);
   test.memStore("1", 2);

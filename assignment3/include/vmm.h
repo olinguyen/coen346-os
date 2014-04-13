@@ -12,7 +12,6 @@
 typedef struct {
   int value;
   std::string variableId;
-  time_t lastAccessTime;
   struct timespec access_time;
 } variable_t;
 

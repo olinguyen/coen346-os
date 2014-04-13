@@ -7,6 +7,10 @@ vmm::vmm(int size)
   max_size = size;
 }
 
+/* Subtract the `struct timeval' values X and Y,
+    storing the result in RESULT.
+    Return 1 if the difference is negative, otherwise 0.
+*/
 int
 timespec_subtract (struct timespec* result, struct timespec* x, struct timespec* y)
  {
@@ -37,9 +41,6 @@ int vmm::memStore(std::string variableId, unsigned int value)
   FILE* fp;
   // Update timestamp for last access
   variable_t tmp;
-  time_t rawtime;
-  time (&rawtime);
-  tmp.lastAccessTime = rawtime;
   clock_gettime(CLOCK_REALTIME, &tmp.access_time);
   tmp.variableId = variableId;
   tmp.value = value;
@@ -90,9 +91,6 @@ int vmm::memLookup(std::string variableId)
   // Search main memory for variableId
   for (int i = 0; i < page_table.size(); i++) {
     if(page_table[i].variableId == variableId) {
-      time_t rawtime;
-      time (&rawtime);
-      page_table[i].lastAccessTime = rawtime;
       clock_gettime(CLOCK_REALTIME, &page_table[i].access_time);
       return page_table[i].value;
     }
@@ -134,9 +132,6 @@ void vmm::swap_memory(std::string variableId)
   // Insert variableid from disk to main memory
   for (int i = 0; i < virtual_memory.size(); i++) {
     if(virtual_memory[i].variableId == variableId) {
-      time_t rawtime;
-      time (&rawtime);
-      virtual_memory[i].lastAccessTime = rawtime;
       clock_gettime(CLOCK_REALTIME, &virtual_memory[i].access_time);
       page_table.push_back(virtual_memory[i]);
       // Remove variableId from disk
